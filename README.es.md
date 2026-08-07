@@ -4,6 +4,13 @@
 > una sola pregunta: *¿cómo fue el día?* — y le deja cambiar los dos números que realmente
 > controla. Un solo código Kotlin, una sola UI en Compose, las dos plataformas.
 
+![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
+![Compose Multiplatform](https://img.shields.io/badge/Compose%20Multiplatform-1.11-4285F4?logo=jetpackcompose&logoColor=white)
+![Material 3](https://img.shields.io/badge/Material%203-Expressive-6750A4?logo=materialdesign&logoColor=white)
+![Ktor](https://img.shields.io/badge/Ktor-3.5-087CFA?logo=ktor&logoColor=white)
+![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS-lightgrey)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 🇬🇧 **[Read this in English](./README.md)** · 🏪 [El sistema POS con el que se conecta](https://github.com/brianmojena/mipymes-pos)
 
 ---
