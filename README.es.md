@@ -11,13 +11,13 @@
 ![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-🇬🇧 **[Read this in English](./README.md)** · 🏪 [El sistema POS con el que se conecta](https://github.com/brianmojena/mipymes-pos)
+🇬🇧 **[Read this in English](./README.md)** · 🏪 [El sistema POS con el que se conecta](https://github.com/brianmojena/al-dia-pos)
 
 ---
 
 ## Qué es
 
-Es la app complementaria de [**Mi Tienda**](https://github.com/brianmojena/mipymes-pos), un
+Es la app complementaria de [**Mi Tienda**](https://github.com/brianmojena/al-dia-pos), un
 sistema de punto de venta para negocios pequeños en Cuba. El POS lo usa quien esté en la caja.
 Esta app es para quien *es dueño* del negocio y normalmente está en otro lado.
 
@@ -207,7 +207,7 @@ cd al-dia-dashboard
 dentro de `iosApp/Configuration/Config.xcconfig` para correr en un dispositivo físico; déjalo
 vacío para el simulador.
 
-Inicia sesión con una cuenta del [backend de Mi Tienda](https://github.com/brianmojena/mipymes-pos)
+Inicia sesión con una cuenta del [backend de Mi Tienda](https://github.com/brianmojena/al-dia-pos)
 — la cuenta de prueba es `demo@mitienda.cu` / `demo1234`. La URL base de la API está en
 `shared/src/commonMain/kotlin/org/atlas/aldia/data/ApiClient.kt`.
 
