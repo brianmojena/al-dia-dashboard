@@ -13,7 +13,7 @@ import org.atlas.aldia.data.ProductLite
 import org.atlas.aldia.data.SaleItem
 import org.atlas.aldia.data.SaleLite
 import org.atlas.aldia.data.TodayStats
-import org.atlas.aldia.data.TokenStorage
+import org.atlas.aldia.data.SessionStore
 import org.atlas.aldia.data.User
 
 sealed class AuthState {
@@ -55,7 +55,7 @@ private fun formatNumber(value: Double): String =
 
 class AppViewModel(
     private val apiClient: ApiClient,
-    private val tokenStorage: TokenStorage,
+    private val tokenStorage: SessionStore,
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.CheckingSession)
