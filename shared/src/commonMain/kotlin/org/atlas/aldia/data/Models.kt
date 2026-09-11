@@ -94,11 +94,71 @@ data class SaleDetail(
     val items: List<SaleItem> = emptyList(),
 )
 
+// --- Arqueos ---------------------------------------------------------------
+// La pregunta que el dueño hace desde lejos no es solo "¿cuánto se vendió?"
+// sino "¿cuadró todo?". El backend responde las dos dentro de /api/dashboard
+// (ver server/routes/dashboard.js) para que esta pantalla se resuelva con una
+// sola petición: en una conexión cubana cada llamada extra es otra oportunidad
+// de fallar.
+
+// account_email es nullable a propósito: las operaciones anteriores a que
+// existiera la atribución no tienen responsable, y decir "sin identificar" es
+// más honesto que atribuírselas a alguien.
+// closed_at_label / counted_at_label vienen ya formateados en HORA DE LA
+// TIENDA desde el servidor (ver server/lib/businessDay.js shopLocalLabel).
+// No se formatea acá a propósito: la zona relevante es la del negocio, no la
+// del teléfono — el dueño de viaje quiere leer la hora de su tienda, no la del
+// país donde esté parado.
+@Serializable
+data class CashCloseLite(
+    val id: Long,
+    val closed_at: String,
+    val closed_at_label: String? = null,
+    val difference: Double,
+    val expected_cash: Double = 0.0,
+    val counted_cash: Double = 0.0,
+    val sales_count: Int = 0,
+    val account_email: String? = null,
+)
+
+@Serializable
+data class InventoryCountLite(
+    val id: Long,
+    val counted_at: String,
+    val counted_at_label: String? = null,
+    val lines_count: Int = 0,
+    val units_missing: Int = 0,
+    val units_extra: Int = 0,
+    val value_missing: Double = 0.0,
+    val account_email: String? = null,
+)
+
+/** Saldo acumulado de descuadres por cuenta. El backend lo manda vacío cuando
+ * hay un solo cajero: ahí el "patrón" sería la misma información que el último
+ * cierre, y ocuparía espacio sin decir nada nuevo. */
+@Serializable
+data class CashierSummary(
+    val account_id: Long? = null,
+    val account_email: String? = null,
+    val closes: Int = 0,
+    val total_difference: Double = 0.0,
+    val times_short: Int = 0,
+)
+
+@Serializable
+data class AuditSummary(
+    val lastCashClose: CashCloseLite? = null,
+    val lastInventoryCount: InventoryCountLite? = null,
+    val cashierSummary: List<CashierSummary> = emptyList(),
+)
+
 @Serializable
 data class DashboardResponse(
     val today: TodayStats,
     val lowStock: List<ProductLite> = emptyList(),
     val recentSales: List<SaleLite> = emptyList(),
+    // Con default: un servidor todavía sin desplegar la función no rompe la app.
+    val audit: AuditSummary = AuditSummary(),
 )
 
 @Serializable

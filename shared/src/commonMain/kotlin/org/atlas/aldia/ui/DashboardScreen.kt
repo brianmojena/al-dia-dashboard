@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
@@ -49,6 +50,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import org.atlas.aldia.data.CashCloseLite
+import org.atlas.aldia.data.CashierSummary
+import org.atlas.aldia.data.InventoryCountLite
 import org.atlas.aldia.data.ProductLite
 import org.atlas.aldia.data.SaleItem
 import org.atlas.aldia.data.SaleLite
@@ -144,6 +148,34 @@ fun DashboardScreen(
                     onUsdRateChange = onUsdRateChange,
                     onSave = onSaveSettings,
                 )
+            }
+
+            // La otra pregunta del dueño que no está en la tienda. Va antes del
+            // stock bajo a propósito: un descuadre es más urgente que un
+            // producto por acabarse.
+            item { Text("¿Cuadró todo?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+            item { CashCloseCard(state.audit.lastCashClose) }
+            item { InventoryCountCard(state.audit.lastInventoryCount) }
+
+            if (state.audit.cashierSummary.isNotEmpty()) {
+                item {
+                    Text(
+                        "Descuadres por cajero",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                items(state.audit.cashierSummary, key = { "cashier-${it.account_id}-${it.account_email}" }) {
+                    CashierSummaryRow(it)
+                }
+                item {
+                    Text(
+                        "Saldo acumulado de sus cierres. Un faltante aislado suele ser un vuelto mal " +
+                            "dado; lo que dice algo es el patrón.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             if (state.lowStock.isNotEmpty()) {
@@ -280,6 +312,182 @@ private fun SettingsCard(
             }
         }
     }
+}
+
+/**
+ * Fila de estado de un arqueo. El color carga el mensaje: rojo si falta, y en
+ * este negocio "falta" es la única palabra que el dueño necesita ver desde
+ * lejos. Sobrante en tono terciario porque también es un descuadre —cobrar de
+ * más también es un problema— pero no de la misma urgencia.
+ */
+@Composable
+private fun AuditRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    detail: String,
+    amount: String?,
+    tone: AuditTone,
+) {
+    val container = when (tone) {
+        AuditTone.SHORT -> MaterialTheme.colorScheme.errorContainer
+        AuditTone.EXTRA -> MaterialTheme.colorScheme.tertiaryContainer
+        AuditTone.OK -> MaterialTheme.colorScheme.surfaceContainer
+    }
+    val onContainer = when (tone) {
+        AuditTone.SHORT -> MaterialTheme.colorScheme.onErrorContainer
+        AuditTone.EXTRA -> MaterialTheme.colorScheme.onTertiaryContainer
+        AuditTone.OK -> MaterialTheme.colorScheme.onSurface
+    }
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = container),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f),
+            ) {
+                Icon(icon, contentDescription = null, tint = onContainer, modifier = Modifier.size(22.dp))
+                Column {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = onContainer,
+                    )
+                    Text(detail, style = MaterialTheme.typography.labelMedium, color = onContainer)
+                }
+            }
+            if (amount != null) {
+                Text(
+                    amount,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = onContainer,
+                )
+            }
+        }
+    }
+}
+
+private enum class AuditTone { OK, SHORT, EXTRA }
+
+// Redondeo antes de comparar: expected y counted son REAL y una suma de
+// decimales puede dejar 0.0000001, que no es un descuadre de verdad.
+private fun isSquare(value: Double): Boolean = kotlin.math.round(value).toLong() == 0L
+
+@Composable
+private fun CashCloseCard(close: CashCloseLite?) {
+    if (close == null) {
+        AuditRow(
+            icon = Icons.Filled.Payments,
+            title = "Caja",
+            detail = "Todavía sin cierres",
+            amount = null,
+            tone = AuditTone.OK,
+        )
+        return
+    }
+
+    val quien = accountLabel(close.account_email) ?: "sin identificar"
+    val cuando = close.closed_at_label ?: ""
+    val detalle = listOf(cuando, quien).filter { it.isNotBlank() }.joinToString(" · ")
+
+    when {
+        isSquare(close.difference) -> AuditRow(
+            icon = Icons.Filled.CheckCircle,
+            title = "Caja cuadró",
+            detail = detalle,
+            amount = null,
+            tone = AuditTone.OK,
+        )
+        close.difference < 0 -> AuditRow(
+            icon = Icons.Filled.Warning,
+            title = "Faltó en caja",
+            detail = detalle,
+            amount = formatCUP(kotlin.math.abs(close.difference)),
+            tone = AuditTone.SHORT,
+        )
+        else -> AuditRow(
+            icon = Icons.Filled.Warning,
+            title = "Sobró en caja",
+            detail = detalle,
+            amount = formatCUP(close.difference),
+            tone = AuditTone.EXTRA,
+        )
+    }
+}
+
+@Composable
+private fun InventoryCountCard(count: InventoryCountLite?) {
+    if (count == null) {
+        AuditRow(
+            icon = Icons.Filled.Inventory2,
+            title = "Inventario",
+            detail = "Todavía sin arqueos",
+            amount = null,
+            tone = AuditTone.OK,
+        )
+        return
+    }
+
+    val quien = accountLabel(count.account_email) ?: "sin identificar"
+    val cuando = count.counted_at_label ?: ""
+    val base = listOf(cuando, quien).filter { it.isNotBlank() }.joinToString(" · ")
+
+    when {
+        count.units_missing > 0 -> AuditRow(
+            icon = Icons.Filled.Warning,
+            title = "Falta mercancía",
+            // El valor grande va a precio de venta: es el dinero que debió
+            // entrar a la caja por lo que salió del estante.
+            detail = "${count.units_missing} uds · $base",
+            amount = formatCUP(count.value_missing),
+            tone = AuditTone.SHORT,
+        )
+        count.units_extra > 0 -> AuditRow(
+            icon = Icons.Filled.Inventory2,
+            title = "Sobra mercancía",
+            detail = "${count.units_extra} uds · $base",
+            amount = null,
+            tone = AuditTone.EXTRA,
+        )
+        else -> AuditRow(
+            icon = Icons.Filled.CheckCircle,
+            title = "Inventario cuadró",
+            detail = "${count.lines_count} productos · $base",
+            amount = null,
+            tone = AuditTone.OK,
+        )
+    }
+}
+
+@Composable
+private fun CashierSummaryRow(summary: CashierSummary) {
+    val falta = kotlin.math.round(summary.total_difference).toLong() < 0L
+    val tone = when {
+        falta -> AuditTone.SHORT
+        isSquare(summary.total_difference) -> AuditTone.OK
+        else -> AuditTone.EXTRA
+    }
+    val cierres = if (summary.closes == 1) "1 cierre" else "${summary.closes} cierres"
+    val detalle = if (summary.times_short > 0) "$cierres · ${summary.times_short} con faltante" else cierres
+
+    AuditRow(
+        icon = Icons.Filled.Person,
+        title = accountLabel(summary.account_email) ?: "Sin identificar",
+        detail = detalle,
+        amount = if (isSquare(summary.total_difference)) formatCUP(0.0)
+        else (if (falta) "-" else "+") + formatCUP(kotlin.math.abs(summary.total_difference)),
+        tone = tone,
+    )
 }
 
 @Composable

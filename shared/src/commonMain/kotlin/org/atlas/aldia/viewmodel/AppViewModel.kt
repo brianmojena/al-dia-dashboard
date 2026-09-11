@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.atlas.aldia.data.ApiClient
 import org.atlas.aldia.data.ApiResult
+import org.atlas.aldia.data.AuditSummary
 import org.atlas.aldia.data.ProductLite
 import org.atlas.aldia.data.SaleItem
 import org.atlas.aldia.data.SaleLite
@@ -35,6 +36,7 @@ data class DashboardUiState(
     val today: TodayStats = TodayStats(),
     val lowStock: List<ProductLite> = emptyList(),
     val recentSales: List<SaleLite> = emptyList(),
+    val audit: AuditSummary = AuditSummary(),
     // Texto libre, no Double — así el campo no "pelea" con lo que el dueño está
     // escribiendo (un punto decimal a medio escribir, borrar para reemplazar, etc.).
     val transferLimitInput: String = "",
@@ -152,6 +154,7 @@ class AppViewModel(
                             today = result.data.today,
                             lowStock = result.data.lowStock,
                             recentSales = result.data.recentSales,
+                            audit = result.data.audit,
                             transferLimitInput = currentUser?.transfer_limit?.let(::formatNumber) ?: "",
                             usdRateInput = currentUser?.usd_rate?.let(::formatNumber) ?: "",
                         )
