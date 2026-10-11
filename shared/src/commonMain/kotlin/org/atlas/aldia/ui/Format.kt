@@ -18,3 +18,7 @@ fun formatCUP(amount: Double): String {
     val grouped = digits.reversed().chunked(3).joinToString(".").reversed()
     return "$ " + (if (negative) "-$grouped" else grouped)
 }
+
+/** Montos en divisa: "US$ 1.234" / "€ 1.234", mismo agrupado que formatCUP. */
+fun formatForeign(symbol: String, amount: Double): String =
+    formatCUP(amount).replaceFirst("$", symbol)

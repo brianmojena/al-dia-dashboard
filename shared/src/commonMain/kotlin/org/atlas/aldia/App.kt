@@ -54,6 +54,7 @@ fun App() {
                         storeName = state.user.store_name,
                         state = dashboardState,
                         onRefresh = viewModel::refreshDashboard,
+                        onAutoRefresh = viewModel::refreshSilently,
                         onLogout = viewModel::logout,
                         onTransferLimitChange = viewModel::onTransferLimitInputChange,
                         onUsdRateChange = viewModel::onUsdRateInputChange,

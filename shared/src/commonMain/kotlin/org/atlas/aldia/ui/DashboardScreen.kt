@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Euro
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
@@ -44,12 +45,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import org.atlas.aldia.data.CashCloseLite
 import org.atlas.aldia.data.CashierSummary
 import org.atlas.aldia.data.InventoryCountLite
@@ -64,12 +67,21 @@ fun DashboardScreen(
     storeName: String,
     state: DashboardUiState,
     onRefresh: () -> Unit,
+    onAutoRefresh: () -> Unit,
     onLogout: () -> Unit,
     onTransferLimitChange: (String) -> Unit,
     onUsdRateChange: (String) -> Unit,
     onSaveSettings: () -> Unit,
     onToggleSaleDetail: (Long) -> Unit,
 ) {
+    // "Tiempo real" = sondeo cada 30 s mientras la pantalla está abierta.
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000)
+            onAutoRefresh()
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -148,6 +160,56 @@ fun DashboardScreen(
                     onUsdRateChange = onUsdRateChange,
                     onSave = onSaveSettings,
                 )
+            }
+
+            item { Text("Dinero en tienda", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        StatCard(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Filled.Payments,
+                            label = "Efectivo",
+                            value = formatCUP(state.balances.cash),
+                            container = MaterialTheme.colorScheme.primaryContainer,
+                            onContainer = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                        StatCard(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Filled.CreditCard,
+                            label = "Transferencia",
+                            value = formatCUP(state.balances.transfer),
+                            container = MaterialTheme.colorScheme.secondaryContainer,
+                            onContainer = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        StatCard(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Filled.AttachMoney,
+                            label = "Dólares",
+                            value = formatForeign("US$", state.balances.usd),
+                            container = MaterialTheme.colorScheme.tertiaryContainer,
+                            onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                        StatCard(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Filled.Euro,
+                            label = "Euros",
+                            value = formatForeign("€", state.balances.eur),
+                            container = MaterialTheme.colorScheme.tertiaryContainer,
+                            onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                    }
+                    StatCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Filled.Inventory2,
+                        label = "Importe total del inventario (al costo)",
+                        value = formatCUP(state.inventoryValue),
+                        container = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        onContainer = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
 
             // La otra pregunta del dueño que no está en la tienda. Va antes del

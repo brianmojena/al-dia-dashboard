@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import org.atlas.aldia.data.ApiClient
 import org.atlas.aldia.data.ApiResult
 import org.atlas.aldia.data.AuditSummary
+import org.atlas.aldia.data.Balances
 import org.atlas.aldia.data.ProductLite
 import org.atlas.aldia.data.SaleItem
 import org.atlas.aldia.data.SaleLite
@@ -37,6 +38,8 @@ data class DashboardUiState(
     val lowStock: List<ProductLite> = emptyList(),
     val recentSales: List<SaleLite> = emptyList(),
     val audit: AuditSummary = AuditSummary(),
+    val balances: Balances = Balances(),
+    val inventoryValue: Double = 0.0,
     // Texto libre, no Double — así el campo no "pelea" con lo que el dueño está
     // escribiendo (un punto decimal a medio escribir, borrar para reemplazar, etc.).
     val transferLimitInput: String = "",
@@ -155,6 +158,8 @@ class AppViewModel(
                             lowStock = result.data.lowStock,
                             recentSales = result.data.recentSales,
                             audit = result.data.audit,
+                            balances = result.data.balances,
+                            inventoryValue = result.data.inventoryValue,
                             transferLimitInput = currentUser?.transfer_limit?.let(::formatNumber) ?: "",
                             usdRateInput = currentUser?.usd_rate?.let(::formatNumber) ?: "",
                         )
@@ -168,6 +173,27 @@ class AppViewModel(
     }
 
     fun refreshDashboard() = loadDashboard()
+
+    /** Refresco periódico sin spinner ni tocar el formulario de ajustes: lo
+     * que el dueño esté tipeando no se pisa, y un fallo de red puntual no
+     * reemplaza lo que ya está en pantalla por un error. */
+    fun refreshSilently() {
+        viewModelScope.launch {
+            val result = apiClient.getDashboard()
+            if (result is ApiResult.Success) {
+                _dashboardState.update {
+                    it.copy(
+                        today = result.data.today,
+                        lowStock = result.data.lowStock,
+                        recentSales = result.data.recentSales,
+                        audit = result.data.audit,
+                        balances = result.data.balances,
+                        inventoryValue = result.data.inventoryValue,
+                    )
+                }
+            }
+        }
+    }
 
     fun onTransferLimitInputChange(value: String) =
         _dashboardState.update { it.copy(transferLimitInput = value, settingsSaved = false, settingsError = null) }
