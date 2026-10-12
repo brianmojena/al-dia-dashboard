@@ -10,7 +10,8 @@ import kotlinx.coroutines.launch
 import org.atlas.aldia.data.ApiClient
 import org.atlas.aldia.data.ApiResult
 import org.atlas.aldia.data.AuditSummary
-import org.atlas.aldia.data.Balances
+import org.atlas.aldia.data.Holdings
+import org.atlas.aldia.data.InventoryTotals
 import org.atlas.aldia.data.ProductLite
 import org.atlas.aldia.data.SaleItem
 import org.atlas.aldia.data.SaleLite
@@ -38,8 +39,8 @@ data class DashboardUiState(
     val lowStock: List<ProductLite> = emptyList(),
     val recentSales: List<SaleLite> = emptyList(),
     val audit: AuditSummary = AuditSummary(),
-    val balances: Balances = Balances(),
-    val inventoryValue: Double = 0.0,
+    val holdings: Holdings = Holdings(),
+    val inventory: InventoryTotals = InventoryTotals(),
     // Texto libre, no Double — así el campo no "pelea" con lo que el dueño está
     // escribiendo (un punto decimal a medio escribir, borrar para reemplazar, etc.).
     val transferLimitInput: String = "",
@@ -158,8 +159,8 @@ class AppViewModel(
                             lowStock = result.data.lowStock,
                             recentSales = result.data.recentSales,
                             audit = result.data.audit,
-                            balances = result.data.balances,
-                            inventoryValue = result.data.inventoryValue,
+                            holdings = result.data.holdings,
+                            inventory = result.data.inventory,
                             transferLimitInput = currentUser?.transfer_limit?.let(::formatNumber) ?: "",
                             usdRateInput = currentUser?.usd_rate?.let(::formatNumber) ?: "",
                         )
@@ -187,8 +188,8 @@ class AppViewModel(
                         lowStock = result.data.lowStock,
                         recentSales = result.data.recentSales,
                         audit = result.data.audit,
-                        balances = result.data.balances,
-                        inventoryValue = result.data.inventoryValue,
+                        holdings = result.data.holdings,
+                        inventory = result.data.inventory,
                     )
                 }
             }

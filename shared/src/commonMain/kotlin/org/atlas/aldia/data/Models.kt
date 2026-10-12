@@ -152,14 +152,23 @@ data class AuditSummary(
     val cashierSummary: List<CashierSummary> = emptyList(),
 )
 
-/** Dinero que hay ahora mismo en la tienda, por medio de pago. Cada moneda se
- * guarda en su propia unidad (USD y EUR no se convierten a CUP acá). */
+/** Dinero que hay ahora mismo en la tienda (lo cobrado desde el último
+ * arqueo), por medio de pago. Cada moneda va en su propia unidad: USD y EUR
+ * no se convierten a CUP. Es el campo `holdings` de /api/dashboard. */
 @Serializable
-data class Balances(
+data class Holdings(
     val cash: Double = 0.0,
     val transfer: Double = 0.0,
     val usd: Double = 0.0,
     val eur: Double = 0.0,
+)
+
+/** Valor del inventario: `cost` al precio de compra, `retail` al de venta. */
+@Serializable
+data class InventoryTotals(
+    val cost: Double = 0.0,
+    val retail: Double = 0.0,
+    val units: Int = 0,
 )
 
 @Serializable
@@ -169,10 +178,10 @@ data class DashboardResponse(
     val recentSales: List<SaleLite> = emptyList(),
     // Con default: un servidor todavía sin desplegar la función no rompe la app.
     val audit: AuditSummary = AuditSummary(),
-    // Importe del inventario al costo, para el económico. Con default, igual
-    // que audit: un servidor sin la función desplegada no rompe la app.
-    val balances: Balances = Balances(),
-    val inventoryValue: Double = 0.0,
+    // Con default, igual que audit: un servidor sin la función desplegada no
+    // rompe la app.
+    val holdings: Holdings = Holdings(),
+    val inventory: InventoryTotals = InventoryTotals(),
 )
 
 @Serializable

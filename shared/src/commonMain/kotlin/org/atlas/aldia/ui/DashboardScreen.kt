@@ -170,7 +170,7 @@ fun DashboardScreen(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Filled.Payments,
                             label = "Efectivo",
-                            value = formatCUP(state.balances.cash),
+                            value = formatCUP(state.holdings.cash),
                             container = MaterialTheme.colorScheme.primaryContainer,
                             onContainer = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
@@ -178,7 +178,7 @@ fun DashboardScreen(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Filled.CreditCard,
                             label = "Transferencia",
-                            value = formatCUP(state.balances.transfer),
+                            value = formatCUP(state.holdings.transfer),
                             container = MaterialTheme.colorScheme.secondaryContainer,
                             onContainer = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
@@ -188,7 +188,7 @@ fun DashboardScreen(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Filled.AttachMoney,
                             label = "Dólares",
-                            value = formatForeign("US$", state.balances.usd),
+                            value = formatForeign("US$", state.holdings.usd),
                             container = MaterialTheme.colorScheme.tertiaryContainer,
                             onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
                         )
@@ -196,7 +196,7 @@ fun DashboardScreen(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Filled.Euro,
                             label = "Euros",
-                            value = formatForeign("€", state.balances.eur),
+                            value = formatForeign("€", state.holdings.eur),
                             container = MaterialTheme.colorScheme.tertiaryContainer,
                             onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
                         )
@@ -204,8 +204,8 @@ fun DashboardScreen(
                     StatCard(
                         modifier = Modifier.fillMaxWidth(),
                         icon = Icons.Filled.Inventory2,
-                        label = "Importe total del inventario (al costo)",
-                        value = formatCUP(state.inventoryValue),
+                        label = "Importe del inventario al costo · ${state.inventory.units} unidades",
+                        value = formatCUP(state.inventory.cost),
                         container = MaterialTheme.colorScheme.surfaceContainerHigh,
                         onContainer = MaterialTheme.colorScheme.onSurface,
                     )
