@@ -20,3 +20,4 @@ node_modules/
 
 # Notas de trabajo / build local
 *.log
+androidApp/google-services.json

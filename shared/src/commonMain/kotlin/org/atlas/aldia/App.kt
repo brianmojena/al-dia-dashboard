@@ -56,8 +56,8 @@ fun App() {
                         onRefresh = viewModel::refreshDashboard,
                         onAutoRefresh = viewModel::refreshSilently,
                         onLogout = viewModel::logout,
-                        onTransferLimitChange = viewModel::onTransferLimitInputChange,
                         onUsdRateChange = viewModel::onUsdRateInputChange,
+                        onEurRateChange = viewModel::onEurRateInputChange,
                         onSaveSettings = viewModel::saveSettings,
                         onToggleSaleDetail = viewModel::toggleSaleDetail,
                     )

@@ -46,6 +46,9 @@ class ApiClient(
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
+        // Sin esto un null (valor por defecto) no se serializa, y "borrar la
+        // tasa" nunca llegaría al servidor.
+        encodeDefaults = true
     }
 
     private val client =
@@ -95,6 +98,12 @@ class ApiClient(
     suspend fun getSale(id: Long): ApiResult<SaleDetail> =
         request(HttpMethod.Get, "/api/sales/$id")
 
-    suspend fun updateSettings(transferLimit: Double?, usdRate: Double?): ApiResult<MeResponse> =
-        request(HttpMethod.Put, "/api/auth/settings", SettingsUpdateRequest(transferLimit, usdRate))
+    suspend fun updateSettings(usdRate: Double?, eurRate: Double?): ApiResult<MeResponse> =
+        request(HttpMethod.Put, "/api/auth/settings", SettingsUpdateRequest(usdRate, eurRate))
+
+    suspend fun registerPush(device: PushDevice): ApiResult<Unit> =
+        request(HttpMethod.Post, "/api/push/register", PushRegisterRequest(device.platform, device.token))
+
+    suspend fun unregisterPush(device: PushDevice): ApiResult<Unit> =
+        request(HttpMethod.Delete, "/api/push/register", PushUnregisterRequest(device.token))
 }

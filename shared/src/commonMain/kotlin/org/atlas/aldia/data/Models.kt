@@ -16,6 +16,7 @@ data class User(
     val created_at: String,
     val transfer_limit: Double? = null,
     val usd_rate: Double? = null,
+    val eur_rate: Double? = null,
 )
 
 @Serializable
@@ -35,12 +36,25 @@ data class LoginRequest(
     val password: String,
 )
 
-// Ambos campos son independientes: enviar solo uno deja el otro sin tocar en
-// el servidor (ver PUT /api/auth/settings). null explícito borra el valor.
+// Las dos tasas se envían siempre juntas y explícitas (ver encodeDefaults en
+// ApiClient): null borra la tasa en el servidor. transfer_limit no viaja a
+// propósito — la app ya no lo edita, y omitirlo lo deja intacto en el servidor
+// (ver PUT /api/auth/settings).
 @Serializable
 data class SettingsUpdateRequest(
-    val transfer_limit: Double? = null,
     val usd_rate: Double? = null,
+    val eur_rate: Double? = null,
+)
+
+@Serializable
+data class PushRegisterRequest(
+    val platform: String,
+    val token: String,
+)
+
+@Serializable
+data class PushUnregisterRequest(
+    val token: String,
 )
 
 @Serializable

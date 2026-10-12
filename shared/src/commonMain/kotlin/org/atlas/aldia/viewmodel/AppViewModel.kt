@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -11,6 +12,7 @@ import org.atlas.aldia.data.ApiClient
 import org.atlas.aldia.data.ApiResult
 import org.atlas.aldia.data.AuditSummary
 import org.atlas.aldia.data.Holdings
+import org.atlas.aldia.data.PushRegistrar
 import org.atlas.aldia.data.InventoryTotals
 import org.atlas.aldia.data.ProductLite
 import org.atlas.aldia.data.SaleItem
@@ -43,8 +45,8 @@ data class DashboardUiState(
     val inventory: InventoryTotals = InventoryTotals(),
     // Texto libre, no Double — así el campo no "pelea" con lo que el dueño está
     // escribiendo (un punto decimal a medio escribir, borrar para reemplazar, etc.).
-    val transferLimitInput: String = "",
     val usdRateInput: String = "",
+    val eurRateInput: String = "",
     val savingSettings: Boolean = false,
     val settingsSaved: Boolean = false,
     val settingsError: String? = null,
@@ -75,6 +77,22 @@ class AppViewModel(
 
     init {
         checkSession()
+        observePushToken()
+    }
+
+    // Registra el teléfono para los avisos de venta apenas haya sesión Y token
+    // (llegan en cualquier orden). El token se recuerda para no repetir la
+    // petición en cada refresco.
+    private var registeredToken: String? = null
+
+    private fun observePushToken() {
+        viewModelScope.launch {
+            combine(PushRegistrar.device, authState) { device, auth -> device to auth }
+                .collect { (device, auth) ->
+                    if (device == null || auth !is AuthState.LoggedIn || device.token == registeredToken) return@collect
+                    if (apiClient.registerPush(device) is ApiResult.Success) registeredToken = device.token
+                }
+        }
     }
 
     private fun checkSession() {
@@ -124,9 +142,16 @@ class AppViewModel(
     }
 
     fun logout() {
-        tokenStorage.setToken(null)
         _authState.value = AuthState.LoggedOut
         _dashboardState.value = DashboardUiState()
+        val device = PushRegistrar.device.value
+        registeredToken = null
+        viewModelScope.launch {
+            // Con el token de sesión todavía vigente: si no, el servidor
+            // rechaza la baja y el teléfono seguiría recibiendo ventas.
+            if (device != null) apiClient.unregisterPush(device)
+            tokenStorage.setToken(null)
+        }
     }
 
     // userHint: se lo pasan login()/checkSession(), que ACABAN de pedir /me y ya
@@ -161,8 +186,8 @@ class AppViewModel(
                             audit = result.data.audit,
                             holdings = result.data.holdings,
                             inventory = result.data.inventory,
-                            transferLimitInput = currentUser?.transfer_limit?.let(::formatNumber) ?: "",
                             usdRateInput = currentUser?.usd_rate?.let(::formatNumber) ?: "",
+                            eurRateInput = currentUser?.eur_rate?.let(::formatNumber) ?: "",
                         )
                     }
                 }
@@ -196,31 +221,31 @@ class AppViewModel(
         }
     }
 
-    fun onTransferLimitInputChange(value: String) =
-        _dashboardState.update { it.copy(transferLimitInput = value, settingsSaved = false, settingsError = null) }
-
     fun onUsdRateInputChange(value: String) =
         _dashboardState.update { it.copy(usdRateInput = value, settingsSaved = false, settingsError = null) }
+
+    fun onEurRateInputChange(value: String) =
+        _dashboardState.update { it.copy(eurRateInput = value, settingsSaved = false, settingsError = null) }
 
     /** Un campo vacío se guarda como "sin definir" (null) a propósito — es
      * cómo el dueño borra un límite/tasa que ya no quiere aplicar. */
     fun saveSettings() {
         val state = _dashboardState.value
-        val transferLimit = state.transferLimitInput.trim().toDoubleOrNull()
         val usdRate = state.usdRateInput.trim().toDoubleOrNull()
+        val eurRate = state.eurRateInput.trim().toDoubleOrNull()
 
-        if (state.transferLimitInput.isNotBlank() && transferLimit == null) {
-            _dashboardState.update { it.copy(settingsError = "El límite de transferencia no es un número válido") }
-            return
-        }
         if (state.usdRateInput.isNotBlank() && usdRate == null) {
             _dashboardState.update { it.copy(settingsError = "La tasa del dólar no es un número válido") }
+            return
+        }
+        if (state.eurRateInput.isNotBlank() && eurRate == null) {
+            _dashboardState.update { it.copy(settingsError = "La tasa del euro no es un número válido") }
             return
         }
 
         viewModelScope.launch {
             _dashboardState.update { it.copy(savingSettings = true, settingsError = null) }
-            when (val result = apiClient.updateSettings(transferLimit, usdRate)) {
+            when (val result = apiClient.updateSettings(usdRate, eurRate)) {
                 is ApiResult.Success -> {
                     _authState.value = AuthState.LoggedIn(result.data.user)
                     // Se resincroniza el formulario con lo que el servidor confirmó
@@ -230,8 +255,8 @@ class AppViewModel(
                         it.copy(
                             savingSettings = false,
                             settingsSaved = true,
-                            transferLimitInput = result.data.user.transfer_limit?.let(::formatNumber) ?: "",
                             usdRateInput = result.data.user.usd_rate?.let(::formatNumber) ?: "",
+                            eurRateInput = result.data.user.eur_rate?.let(::formatNumber) ?: "",
                         )
                     }
                 }

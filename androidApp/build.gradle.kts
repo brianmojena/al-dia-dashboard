@@ -5,6 +5,13 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
+// Avisos push (FCM). El plugin necesita google-services.json (Firebase Console →
+// configuración del proyecto → app Android org.atlas.aldia); sin ese archivo la
+// app compila igual, pero no recibe avisos.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_11
@@ -14,6 +21,8 @@ dependencies {
     implementation(project(":shared"))
 
     implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)

@@ -16,6 +16,8 @@ material3 = "1.11.0-alpha07"
 ktor = "3.5.1"
 kotlinx-serialization = "1.11.0"
 kotlinx-coroutines = "1.10.2"
+firebase-bom = "35.0.0"
+google-services = "4.5.0"
 # material-icons-extended se versiona aparte del resto de Compose Multiplatform
 # (se estancó en 1.7.3 — no sigue el tren de releases 1.11.x del resto).
 materialIconsExtended = "1.7.3"
@@ -33,6 +35,9 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
+google-services-classpath = { module = "com.google.gms:google-services", version.ref = "google-services" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
 androidx-testExt-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-testExt" }
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidx-espresso" }

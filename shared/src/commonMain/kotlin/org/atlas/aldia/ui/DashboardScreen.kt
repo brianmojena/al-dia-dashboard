@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -37,6 +39,8 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +50,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -69,11 +77,15 @@ fun DashboardScreen(
     onRefresh: () -> Unit,
     onAutoRefresh: () -> Unit,
     onLogout: () -> Unit,
-    onTransferLimitChange: (String) -> Unit,
     onUsdRateChange: (String) -> Unit,
+    onEurRateChange: (String) -> Unit,
     onSaveSettings: () -> Unit,
     onToggleSaleDetail: (Long) -> Unit,
 ) {
+    var showSoldOut by remember { mutableStateOf(false) }
+    val soldOut = state.lowStock.filter { it.stock <= 0 }
+    val running = state.lowStock.filter { it.stock > 0 }
+
     // "Tiempo real" = sondeo cada 30 s mientras la pantalla está abierta.
     LaunchedEffect(Unit) {
         while (true) {
@@ -153,11 +165,63 @@ fun DashboardScreen(
                 }
             }
 
+            // La otra pregunta del dueño que no está en la tienda. Va antes del
+            // stock bajo a propósito: un descuadre es más urgente que un
+            // producto por acabarse.
+            item { Text("¿Cuadró todo?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+            item { CashCloseCard(state.audit.lastCashClose) }
+            item { InventoryCountCard(state.audit.lastInventoryCount) }
+
+            if (state.audit.cashierSummary.isNotEmpty()) {
+                item {
+                    Text(
+                        "Descuadres por cajero",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                items(state.audit.cashierSummary, key = { "cashier-${it.account_id}-${it.account_email}" }) {
+                    CashierSummaryRow(it)
+                }
+                item {
+                    Text(
+                        "Saldo acumulado de sus cierres. Un faltante aislado suele ser un vuelto mal " +
+                            "dado; lo que dice algo es el patrón.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            item { SoldOutButton(count = soldOut.size, onClick = { showSoldOut = true }) }
+
+            item { Text("Últimas ventas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+            if (state.recentSales.isEmpty()) {
+                item {
+                    Text(
+                        "Sin ventas registradas hoy",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            } else {
+                items(state.recentSales, key = { "sale-${it.id}" }) { sale ->
+                    val expanded = state.expandedSaleId == sale.id
+                    SaleRow(
+                        sale = sale,
+                        expanded = expanded,
+                        loadingDetail = expanded && state.expandedSaleLoading,
+                        items = state.saleItemsCache[sale.id],
+                        onClick = { onToggleSaleDetail(sale.id) },
+                    )
+                }
+            }
+
             item {
                 SettingsCard(
                     state = state,
-                    onTransferLimitChange = onTransferLimitChange,
                     onUsdRateChange = onUsdRateChange,
+                    onEurRateChange = onEurRateChange,
                     onSave = onSaveSettings,
                 )
             }
@@ -212,68 +276,16 @@ fun DashboardScreen(
                 }
             }
 
-            // La otra pregunta del dueño que no está en la tienda. Va antes del
-            // stock bajo a propósito: un descuadre es más urgente que un
-            // producto por acabarse.
-            item { Text("¿Cuadró todo?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-            item { CashCloseCard(state.audit.lastCashClose) }
-            item { InventoryCountCard(state.audit.lastInventoryCount) }
-
-            if (state.audit.cashierSummary.isNotEmpty()) {
-                item {
-                    Text(
-                        "Descuadres por cajero",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-                items(state.audit.cashierSummary, key = { "cashier-${it.account_id}-${it.account_email}" }) {
-                    CashierSummaryRow(it)
-                }
-                item {
-                    Text(
-                        "Saldo acumulado de sus cierres. Un faltante aislado suele ser un vuelto mal " +
-                            "dado; lo que dice algo es el patrón.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            if (state.lowStock.isNotEmpty()) {
-                item { Text("Stock bajo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-                // Prefijo "product-"/"sale-": product.id y sale.id son secuencias
-                // autoincrementales independientes (tablas distintas), así que sus
-                // valores pueden coincidir. Compose exige claves únicas en TODO el
-                // LazyColumn, no solo dentro de cada bloque items() — sin el
-                // prefijo, un id de producto y uno de venta que coincidan (ej. 22)
-                // chocan y crashea al scrollear hasta esa posición.
-                items(state.lowStock, key = { "product-${it.id}" }) { LowStockRow(it) }
-            }
-
-            item { Text("Últimas ventas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-            if (state.recentSales.isEmpty()) {
-                item {
-                    Text(
-                        "Sin ventas registradas hoy",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-            } else {
-                items(state.recentSales, key = { "sale-${it.id}" }) { sale ->
-                    val expanded = state.expandedSaleId == sale.id
-                    SaleRow(
-                        sale = sale,
-                        expanded = expanded,
-                        loadingDetail = expanded && state.expandedSaleLoading,
-                        items = state.saleItemsCache[sale.id],
-                        onClick = { onToggleSaleDetail(sale.id) },
-                    )
-                }
-            }
-
             item { Spacer(Modifier.height(8.dp)) }
+        }
+    }
+
+    if (showSoldOut) {
+        ModalBottomSheet(
+            onDismissRequest = { showSoldOut = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            SoldOutList(soldOut = soldOut, running = running)
         }
     }
 }
@@ -305,8 +317,8 @@ private fun StatCard(
 @Composable
 private fun SettingsCard(
     state: DashboardUiState,
-    onTransferLimitChange: (String) -> Unit,
     onUsdRateChange: (String) -> Unit,
+    onEurRateChange: (String) -> Unit,
     onSave: () -> Unit,
 ) {
     Card(
@@ -318,11 +330,11 @@ private fun SettingsCard(
             Text("Configuración del negocio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             OutlinedTextField(
-                value = state.transferLimitInput,
-                onValueChange = onTransferLimitChange,
-                label = { Text("Límite de transferencia (CUP)") },
-                placeholder = { Text("Sin límite") },
-                leadingIcon = { Icon(Icons.Filled.CreditCard, contentDescription = null) },
+                value = state.usdRateInput,
+                onValueChange = onUsdRateChange,
+                label = { Text("Cambio del dólar (CUP por 1 USD)") },
+                placeholder = { Text("Sin definir") },
+                leadingIcon = { Icon(Icons.Filled.Payments, contentDescription = null) },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -330,11 +342,11 @@ private fun SettingsCard(
             )
 
             OutlinedTextField(
-                value = state.usdRateInput,
-                onValueChange = onUsdRateChange,
-                label = { Text("Tasa del dólar (CUP por USD)") },
+                value = state.eurRateInput,
+                onValueChange = onEurRateChange,
+                label = { Text("Cambio del euro (CUP por 1 EUR)") },
                 placeholder = { Text("Sin definir") },
-                leadingIcon = { Icon(Icons.Filled.Payments, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Filled.Euro, contentDescription = null) },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -553,37 +565,6 @@ private fun CashierSummaryRow(summary: CashierSummary) {
 }
 
 @Composable
-private fun LowStockRow(product: ProductLite) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(
-                    Icons.Filled.Warning,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.size(18.dp),
-                )
-                Text(product.name, color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodyMedium)
-            }
-            Text(
-                if (product.stock == 0) "AGOTADO" else "${product.stock} uds",
-                color = MaterialTheme.colorScheme.onErrorContainer,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
-    }
-}
-
-@Composable
 private fun SaleRow(
     sale: SaleLite,
     expanded: Boolean,
@@ -669,5 +650,132 @@ private fun ErrorBanner(message: String) {
             modifier = Modifier.padding(14.dp),
             color = MaterialTheme.colorScheme.onErrorContainer,
         )
+    }
+}
+
+@Composable
+private fun SoldOutButton(count: Int, onClick: () -> Unit) {
+    val hasAny = count > 0
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (hasAny) MaterialTheme.colorScheme.errorContainer
+            else MaterialTheme.colorScheme.surfaceContainer,
+        ),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+    ) {
+        val color = if (hasAny) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(
+                    if (hasAny) Icons.Filled.Warning else Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(24.dp),
+                )
+                Column {
+                    Text("Productos agotados", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = color)
+                    Text(
+                        when (count) {
+                            0 -> "No hay ninguno agotado"
+                            1 -> "1 producto sin existencias"
+                            else -> "$count productos sin existencias"
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = color,
+                    )
+                }
+            }
+            Icon(Icons.Filled.ChevronRight, contentDescription = "Ver lista", tint = color)
+        }
+    }
+}
+
+/** Lista a pantalla completa de lo que se acabó, grande y sin ruido. Debajo, lo
+ * que está por acabarse, para que el jefe compre antes de quedarse sin él. */
+@Composable
+private fun SoldOutList(soldOut: List<ProductLite>, running: List<ProductLite>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            Text(
+                "Productos agotados",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        if (soldOut.isEmpty()) {
+            item {
+                Text(
+                    "Todo tiene existencias.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                )
+            }
+        } else {
+            item {
+                Text(
+                    if (soldOut.size == 1) "1 producto sin existencias" else "${soldOut.size} productos sin existencias",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            items(soldOut, key = { "soldout-${it.id}" }) { product ->
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            product.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            "AGOTADO",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
+                }
+            }
+        }
+
+        if (running.isNotEmpty()) {
+            item {
+                Spacer(Modifier.height(8.dp))
+                Text("Por acabarse", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            items(running, key = { "running-${it.id}" }) { product ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(product.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Text(
+                        if (product.stock == 1) "queda 1" else "quedan ${product.stock}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        }
     }
 }
