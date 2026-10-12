@@ -204,8 +204,8 @@ fun DashboardScreen(
                     StatCard(
                         modifier = Modifier.fillMaxWidth(),
                         icon = Icons.Filled.Inventory2,
-                        label = "Importe del inventario al costo · ${state.inventory.units} unidades",
-                        value = formatCUP(state.inventory.cost),
+                        label = "Importe del inventario a precio de venta · ${state.inventory.units} unidades",
+                        value = formatCUP(state.inventory.retail),
                         container = MaterialTheme.colorScheme.surfaceContainerHigh,
                         onContainer = MaterialTheme.colorScheme.onSurface,
                     )
